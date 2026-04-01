@@ -26,6 +26,7 @@ import {
 } from '../repositories/leads.js';
 import { finalizeCall } from '../callService.js';
 import { pingDb } from '../db.js';
+import { TWILIO_SAY_OPTS } from '../twilioVoice.js';
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
@@ -139,10 +140,7 @@ export function registerApiRoutes(app) {
       speechTimeout: 'auto',
       language: 'en-US',
     });
-    gather.say(
-      { voice: 'Polly.Joanna', rate: '95%' },
-      'Hi, this is Alex from Leadforces. Do you have a moment?'
-    );
+    gather.say(TWILIO_SAY_OPTS, 'Hi, this is Alex from Leadforces. Do you have a moment?');
     twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     res.type('text/xml').send(twiml.toString());
   });
@@ -152,7 +150,7 @@ export function registerApiRoutes(app) {
     const twiml = new VoiceResponse();
 
     if (!CallSid) {
-      twiml.say('Sorry, something went wrong.');
+      twiml.say(TWILIO_SAY_OPTS, 'Sorry, something went wrong.');
       res.type('text/xml').send(twiml.toString());
       return;
     }
@@ -231,7 +229,7 @@ export function registerApiRoutes(app) {
       if (!useSay && audioUrl) {
         gather2.play(audioUrl);
       } else {
-        gather2.say({ voice: 'Polly.Joanna', rate: '95%' }, question);
+        gather2.say(TWILIO_SAY_OPTS, question);
       }
 
       twiml.redirect(`${baseUrl()}/api/twilio/voice`);
@@ -244,7 +242,7 @@ export function registerApiRoutes(app) {
         timeout: 5,
         speechTimeout: 'auto',
       });
-      gather3.say({ voice: 'Polly.Joanna' }, 'Sorry, could you repeat that?');
+      gather3.say(TWILIO_SAY_OPTS, 'Sorry, could you repeat that?');
       twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     }
 

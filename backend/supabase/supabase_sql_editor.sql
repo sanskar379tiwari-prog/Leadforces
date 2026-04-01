@@ -1,5 +1,11 @@
--- Run in Supabase SQL Editor (PostgreSQL).
--- One-paste variant (includes private Storage bucket `tts`): supabase/supabase_sql_editor.sql
+-- =============================================================================
+-- Leadforces — run in Supabase SQL Editor (new project)
+-- Mirrors PDF §5.1 DDL (backend/schema.sql) + private Storage bucket for TTS MP3s.
+-- Signed URLs are created by the backend (service role); bucket stays private.
+-- =============================================================================
+
+-- --- Tables (PDF §5.1) --------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS leads (
   id SERIAL PRIMARY KEY,
   lead_id VARCHAR(100) UNIQUE NOT NULL,
@@ -57,3 +63,12 @@ CREATE TABLE IF NOT EXISTS conversation_turns (
 CREATE INDEX IF NOT EXISTS idx_leads_score ON leads(score DESC);
 CREATE INDEX IF NOT EXISTS idx_leads_qualified ON leads(qualified);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
+
+-- Optional: omit CRM tracking (only safe on empty / disposable DBs)
+-- ALTER TABLE leads DROP COLUMN IF EXISTS crm_pushed;
+
+-- --- Storage: private bucket `tts` (Cartesia MP3 → signed URL for Twilio <Play>)
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('tts', 'tts', false)
+ON CONFLICT (id) DO NOTHING;

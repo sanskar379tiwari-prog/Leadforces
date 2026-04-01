@@ -4,16 +4,16 @@ overview: Leadforces (voice AI sales qualification) using non-AWS services with 
 todos:
   - id: supabase-setup
     content: "Create Supabase project: run PDF §5.1 SQL in SQL Editor (optional: drop crm_pushed if unused); create private Storage bucket `tts` with signed URLs"
-    status: pending
+    status: completed
   - id: backend-stack
     content: Express + pg (Supabase) + Supabase Storage; @google/generative-ai for all qualification prompts (framework, next question, extract, score); no CRM routes
-    status: pending
+    status: completed
   - id: env-docs
     content: Document .env (DATABASE_URL, Supabase keys, GEMINI_API_KEY, GEMINI_MODEL) — no AWS_*, ANTHROPIC_*, or CRM keys
-    status: pending
+    status: completed
   - id: tts-fallback
     content: Primary Cartesia → MP3 to Supabase Storage; fallback Twilio native `<Say>` (no AWS account)
-    status: pending
+    status: completed
 isProject: false
 ---
 

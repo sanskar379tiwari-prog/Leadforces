@@ -15,7 +15,7 @@ function getClient() {
 export async function uploadTtsMp3(buffer, filename) {
   const supabase = getClient();
   if (!supabase) return null;
-  const path = `tts/${filename}`;
+  const path = filename;
   const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
     contentType: 'audio/mpeg',
     upsert: true,
