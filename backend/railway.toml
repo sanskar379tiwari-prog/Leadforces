@@ -1,0 +1,8 @@
+# Railway: set the service "Root Directory" to `backend` when the repo also contains `frontend/`.
+# https://docs.railway.app/guides/monorepo
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm start"

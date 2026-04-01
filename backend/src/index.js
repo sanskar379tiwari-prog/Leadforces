@@ -5,7 +5,9 @@ import { registerApiRoutes } from './routes/api.js';
 import { pingDb } from './db.js';
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
+// Railway (and most PaaS) require listening on all interfaces — not localhost-only.
+const host = process.env.HOST || '0.0.0.0';
 
 const frontend = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(
@@ -27,8 +29,8 @@ app.get('/', (_req, res) => {
 });
 
 app
-  .listen(port, async () => {
-    console.log(`Leadforces API http://localhost:${port}`);
+  .listen(port, host, async () => {
+    console.log(`Leadforces API listening on ${host}:${port}`);
     try {
       await pingDb();
       console.log('Database connected');
