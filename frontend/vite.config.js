@@ -7,8 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://leadforces.onrender.com',
         changeOrigin: true,
+        secure: false, // Prevents certificate issues in local dev
+        // Ensure path remains correct
+        rewrite: (path) => path,
       },
     },
   },
