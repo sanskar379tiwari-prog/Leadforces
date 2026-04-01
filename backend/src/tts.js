@@ -9,7 +9,7 @@ export async function synthesizeToPlayableUrl(text) {
   const modelId = process.env.HF_TTS_MODEL_ID || 'ai4bharat/IndicF5';
   
   if (!hfToken) {
-    console.warn('HUGGING_FACE_TOKEN not set, falling back to Alex (Twilio Say).');
+    console.warn('HUGGING_FACE_TOKEN not set, falling back to Twilio Say.');
     return { url: null, useSay: true };
   }
 
@@ -23,19 +23,18 @@ export async function synthesizeToPlayableUrl(text) {
           'Content-Type': 'application/json',
         },
         responseType: 'arraybuffer',
-        timeout: 45000, // Hugging Face IndicF5 can take a bit longer
+        timeout: 30000, // TTS on HF can be slow
       }
     );
 
     const buffer = Buffer.from(resp.data);
-    const filename = `tts-indicf5-${Date.now()}.mp3`;
+    const filename = `tts-hf-${Date.now()}.mp3`;
     const url = await uploadTtsMp3(buffer, filename);
     
     if (!url) return { url: null, useSay: true };
     return { url, useSay: false };
   } catch (e) {
     console.error('Hugging Face TTS error:', e.response?.data?.toString() || e.message);
-    // If Hugging Face is busy or errors, Fallback to Twilio Say so the call doesn't hang up!
     return { url: null, useSay: true };
   }
 }
