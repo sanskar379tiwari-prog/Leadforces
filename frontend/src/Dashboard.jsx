@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from './api/client'
 import LeadScorecard from './components/LeadScorecard'
 import CallTranscript from './components/CallTranscript'
 import CdrPanel from './components/CdrPanel'
 
+/* ── tiny helpers ── */
+const fmt = (n) => String(n ?? 0)
+const pct = (n) => `${n ?? 0}%`
+
 export default function Dashboard() {
   const [leads, setLeads] = useState([])
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState('overview')
+  const tableRef = useRef(null)
 
   useEffect(() => {
     const load = async () => {
@@ -17,7 +23,7 @@ export default function Dashboard() {
         setLeads(data)
         setError('')
       } catch (e) {
-        setError(e.message || 'Failed to load leads')
+        setError(e.message || 'Failed to load')
       }
     }
     load()
@@ -25,199 +31,331 @@ export default function Dashboard() {
     return () => clearInterval(t)
   }, [])
 
-  const qualifiedLeads = leads.filter((l) => l.qualified === 'QUALIFIED')
-  const avgScore = leads.length === 0 ? 0 : Math.round(leads.reduce((a, l) => a + (l.score || 0), 0) / leads.length)
+  const qualified = leads.filter((l) => l.qualified === 'QUALIFIED').length
+  const avgScore = leads.length ? Math.round(leads.reduce((a, l) => a + (l.score || 0), 0) / leads.length) : 0
+  const topScores = [...leads].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 7)
 
   return (
-    <div className="flex min-h-screen bg-[#060818] font-sans selection:bg-[#D4FF00] selection:text-black">
-      {/* --- Sidebar Navigation --- */}
-      <nav className="w-20 lg:w-64 border-r border-white/5 flex flex-col items-center lg:items-start p-6 gap-8 bg-[#0A0F2C]/50 backdrop-blur-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-tr from-[#D4FF00] to-[#8B5CF6] rounded-xl flex items-center justify-center font-bold text-black text-xl">L</div>
-          <span className="hidden lg:block text-xl font-bold tracking-tight text-white">Leadforces</span>
-        </div>
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
 
-        <div className="flex flex-col gap-2 w-full">
-          <NavItem icon="▩" label="Overview" active />
-          <NavItem icon="▤" label="Audience" />
-          <NavItem icon="⊡" label="Settings" />
+      {/* ═══════════  TOP NAV BAR  ═══════════ */}
+      <nav className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 border-b border-white/[0.06] bg-[#0D0D0D]/80 backdrop-blur-xl">
+        <div className="flex items-center gap-8">
+          {['overview', 'performance', 'leads', 'settings'].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`text-[13px] font-semibold capitalize tracking-wide transition-colors ${
+                tab === t ? 'text-white' : 'text-white/30 hover:text-white/60'
+              }`}
+            >
+              {t === 'overview' && '⊞ '}
+              {t === 'performance' && '⊿ '}
+              {t === 'leads' && '⊡ '}
+              {t === 'settings' && '⊙ '}
+              {t}
+            </button>
+          ))}
         </div>
-
-        <div className="mt-auto hidden lg:flex items-center gap-3 p-3 glass rounded-2xl w-full">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 text-xs">AI</div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Alex (AI)</span>
-            <span className="text-[10px] text-emerald-400">● Live Assistant</span>
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[11px] font-bold ring-2 ring-white/10">
+            LF
           </div>
         </div>
       </nav>
 
-      {/* --- Main Content --- */}
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto max-w-[1600px] mx-auto w-full">
-        <header className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Lead Performance</h1>
-            <p className="text-slate-400 mt-1">Real-time Voice AI qualification dashboard</p>
-          </div>
+      {/* ═══════════  MAIN CONTENT  ═══════════ */}
+      <main className="max-w-[1440px] mx-auto px-8 py-8">
+
+        {/* ── Header Row ── */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-[28px] font-bold tracking-tight">Lead performance</h1>
           <div className="flex items-center gap-3">
-            <a href="/api/leads/export/csv" className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-sm font-medium">Export CSV</a>
-            <button className="px-5 py-2 bg-[#D4FF00] text-black rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,255,0,0.3)]">+ New Lead</button>
+            <a
+              href="/api/leads/export/csv"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[13px] font-medium text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </a>
+            <button className="flex items-center gap-2 px-5 py-2 rounded-xl bg-white text-black text-[13px] font-bold hover:bg-white/90 active:scale-[0.97] transition-all">
+              + Add new lead
+            </button>
           </div>
-        </header>
-
-        {error && (
-            <motion.div initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} className="mb-8 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl text-sm flex items-center gap-3">
-              <span className="text-xl">⚠️</span> {error} — Please check backend status.
-            </motion.div>
-        )}
-
-        {/* --- Top Metrics Row --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <StatCard label="Total Calls" value={leads.length} trend="+12.2%" gradient="from-[#8B5CF6]/20 to-[#060818]" />
-          <MetricChart label="Avg engagement" value={`${avgScore}%`} trend="-1.2%" gradient="from-indigo-600/20 to-transparent" />
-          <StatCard label="Qualified" value={qualifiedLeads.length} trend="+5%" gradient="from-white/5 to-transparent" />
-          <StatCard label="Frameworks" value="BANT/MEDDIC" trend="Active" variant="outline" />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* --- Leads Table Section --- */}
-          <section className="xl:col-span-2 glass rounded-[2.5rem] p-6 card-shadow">
-            <div className="flex items-center justify-between mb-8 px-2">
-              <h2 className="text-xl font-bold">List leads</h2>
-              <div className="flex gap-2 text-xs text-slate-500">
-                <button className="px-3 py-1.5 border border-white/10 rounded-lg hover:text-white transition-colors">Filters</button>
-                <button className="px-3 py-1.5 border border-white/10 rounded-lg hover:text-white transition-colors">Sort</button>
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 px-5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[13px]">
+            ⚠ {error}
+          </motion.div>
+        )}
+
+        {/* ═══════════  TWO CHART CARDS  ═══════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+
+          {/* ── Left Chart: Call Activity (line chart) ── */}
+          <div className="relative rounded-[20px] bg-[#161616] border border-white/[0.06] p-6 overflow-hidden min-h-[280px]">
+            {/* Purple gradient bg */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-transparent to-transparent pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] font-medium text-white/50">Avg lead score</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 font-medium">This week</span>
+                  <button className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white transition-colors text-[12px]">↗</button>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-3 mb-1">
+                <span className="text-[48px] font-extrabold tracking-tighter leading-none">{avgScore}</span>
+                <span className="text-emerald-400 text-[13px] font-bold bg-emerald-400/10 px-2 py-0.5 rounded-md">
+                  +{leads.length > 0 ? Math.min(12, leads.length) : 0}%
+                </span>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-white/5">
-                    <th className="pb-4 px-4">Lead ID / Info</th>
-                    <th className="pb-4 px-4 text-center">Score</th>
-                    <th className="pb-4 px-4">Qualified</th>
-                    <th className="pb-4 px-4">Framework</th>
-                    <th className="pb-4 px-4"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {leads.map((l) => (
-                    <motion.tr
-                      key={l.lead_id}
-                      layoutId={l.lead_id}
-                      onClick={() => setSelected(l.lead_id)}
-                      className={`group hover:bg-white/5 transition-colors cursor-pointer ${selected === l.lead_id ? 'bg-[#D4FF00]/10 border-l-2 border-[#D4FF00]' : ''}`}
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center font-mono text-[10px] text-slate-400 group-hover:scale-110 transition-transform">
-                            {l.phone_number?.slice(-2)}
-                          </div>
-                          <div>
-                            <div className="font-mono text-xs text-slate-400 opacity-60 truncate max-w-[100px]">{l.lead_id}</div>
-                            <div className="text-sm font-medium">{l.phone_number}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`text-lg font-bold ${l.score > 70 ? 'text-[#D4FF00]' : 'text-white'}`}>{l.score ?? 0}</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${l.qualified === 'QUALIFIED' ? 'bg-[#D4FF00]/10 text-[#D4FF00]' : 'bg-slate-800 text-slate-500'}`}>
-                          {l.qualified}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-xs font-semibold text-slate-400">{l.framework}</td>
-                      <td className="py-4 px-4 text-right pr-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-slate-400 text-xl font-light">→</span>
-                      </td>
-                    </motion.tr>
-                  ))}
-                  {leads.length === 0 && (
-                    <tr><td colSpan="5" className="py-20 text-center text-slate-500 italic text-sm">No leads recorded yet. Calls will appear here life.</td></tr>
-                  )}
-                </tbody>
-              </table>
+            {/* SVG Line Chart */}
+            <div className="absolute bottom-0 left-0 right-0 h-[140px]">
+              <svg viewBox="0 0 500 140" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgba(168,85,247,0.4)" />
+                    <stop offset="100%" stopColor="rgba(168,85,247,0)" />
+                  </linearGradient>
+                </defs>
+                <path d="M0 120 Q60 80 100 90 T200 60 T300 75 T400 40 T500 55 V140 H0Z" fill="url(#lineGrad)" />
+                <path d="M0 120 Q60 80 100 90 T200 60 T300 75 T400 40 T500 55" fill="none" stroke="rgba(168,85,247,0.8)" strokeWidth="2.5" />
+                {/* Dot + tooltip */}
+                <circle cx="300" cy="75" r="4" fill="white" />
+                <rect x="265" y="52" width="70" height="22" rx="6" fill="rgba(30,30,30,0.9)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                <text x="300" y="67" textAnchor="middle" fill="white" fontSize="10" fontWeight="600">{avgScore} pts</text>
+              </svg>
             </div>
-          </section>
+            {/* X-axis labels */}
+            <div className="absolute bottom-3 left-6 right-6 flex justify-between text-[10px] text-white/20 font-medium">
+              {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <span key={d}>{d}</span>)}
+            </div>
+          </div>
 
-          {/* --- Detail Pane Section --- */}
-          <section className="xl:col-span-1 space-y-6">
-            <AnimatePresence mode="wait">
-              {selected ? (
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:20 }} className="space-y-6">
-                  <div className="glass rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4FF00]/5 blur-3xl group-hover:bg-[#D4FF00]/15 transition-all"></div>
+          {/* ── Right Chart: Leads by Score (bar chart) ── */}
+          <div className="rounded-[20px] bg-[#161616] border border-white/[0.06] p-6 min-h-[280px] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-[13px] font-medium text-white/50">Leads by score</span>
+              <div className="flex items-center gap-2">
+                <button className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white transition-colors text-[12px]">⊞</button>
+                <button className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white transition-colors text-[12px]">↗</button>
+              </div>
+            </div>
+            {/* Y-axis + bars */}
+            <div className="flex-1 flex items-end gap-1 relative">
+              {/* Y grid lines */}
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                {[100, 80, 60, 40, 20, 0].map(v => (
+                  <div key={v} className="flex items-center gap-2">
+                    <span className="text-[9px] text-white/15 w-5 text-right">{v}</span>
+                    <div className="flex-1 border-t border-white/[0.04]" />
+                  </div>
+                ))}
+              </div>
+              {/* Bars */}
+              <div className="flex-1 flex items-end justify-around gap-2 px-6 pb-1 relative z-10">
+                {topScores.length > 0 ? topScores.map((l, i) => {
+                  const h = Math.max(5, (l.score || 0))
+                  const isHighest = i === 0
+                  return (
+                    <div key={l.lead_id} className="flex flex-col items-center gap-2 flex-1">
+                      {isHighest && (
+                        <span className="text-[11px] font-bold text-white bg-white/10 px-2 py-0.5 rounded-md">{l.score}</span>
+                      )}
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${h}%` }}
+                        transition={{ duration: 0.8, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                        className={`w-full min-w-[28px] max-w-[42px] rounded-t-lg ${isHighest ? 'bg-white' : 'bg-white/[0.08]'}`}
+                        style={{ maxHeight: '180px' }}
+                      />
+                      <span className="text-[10px] text-white/25 font-medium truncate max-w-[50px]">
+                        {l.phone_number?.slice(-4) || `#${i+1}`}
+                      </span>
+                    </div>
+                  )
+                }) : (
+                  <div className="text-white/20 text-[12px] italic py-10 w-full text-center">No leads yet</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════  FOUR STAT CARDS  ═══════════ */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <StatCard label="Total calls" value={fmt(leads.length)} />
+          <StatCard label="Qualified leads" value={fmt(qualified)} />
+          <StatCard label="Avg score" value={pct(avgScore)} />
+          <StatCard label="Frameworks used" value={leads.length > 0 ? 'BANT' : '—'} />
+        </div>
+
+        {/* ═══════════  TABLE + DETAIL PANEL  ═══════════ */}
+        <div className="flex gap-5">
+
+          {/* ── Table Section ── */}
+          <div className={`transition-all duration-500 ${selected ? 'flex-[2]' : 'flex-1'}`}>
+            <div className="rounded-[20px] bg-[#161616] border border-white/[0.06]">
+              {/* Table header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+                <h2 className="text-[16px] font-bold">List leads</h2>
+                <div className="flex items-center gap-3">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/40 hover:text-white transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    Filters
+                  </button>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-black text-[12px] font-bold hover:bg-white/90 transition-colors">
+                    + Add user
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto" ref={tableRef}>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[11px] font-semibold text-white/25 uppercase tracking-wider border-b border-white/[0.04]">
+                      <th className="py-3 px-6">Name</th>
+                      <th className="py-3 px-6">Score</th>
+                      <th className="py-3 px-6">Phone</th>
+                      <th className="py-3 px-6">Qualification</th>
+                      <th className="py-3 px-6">Framework</th>
+                      <th className="py-3 px-6">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map((l) => (
+                      <motion.tr
+                        key={l.lead_id}
+                        onClick={() => setSelected(selected === l.lead_id ? null : l.lead_id)}
+                        className={`cursor-pointer transition-colors border-b border-white/[0.03] ${
+                          selected === l.lead_id
+                            ? 'bg-white/[0.04]'
+                            : 'hover:bg-white/[0.02]'
+                        }`}
+                        whileHover={{ x: 2 }}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {l.phone_number?.slice(-2) || '??'}
+                            </div>
+                            <div>
+                              <div className="text-[13px] font-semibold">{l.prospect_name || l.phone_number || 'Unknown'}</div>
+                              <div className="text-[10px] text-white/20 font-mono truncate max-w-[100px]">{l.lead_id?.slice(0,8)}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-20 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                              <motion.div
+                                className="h-full rounded-full bg-white"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(100, l.score || 0)}%` }}
+                                transition={{ duration: 0.8 }}
+                              />
+                            </div>
+                            <span className="text-[12px] font-semibold text-white/60">{l.score ?? 0}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-[13px] text-white/50">{l.phone_number}</td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            l.qualified === 'QUALIFIED'
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : l.qualified === 'DISQUALIFIED'
+                              ? 'bg-red-500/15 text-red-400'
+                              : 'bg-white/[0.06] text-white/30'
+                          }`}>
+                            {l.qualified || 'PENDING'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-300">
+                            {l.framework || '—'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-[12px] text-white/25">
+                          {l.created_at ? new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                      </motion.tr>
+                    ))}
+                    {leads.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-16 text-white/15 text-[13px] italic">
+                          No leads recorded yet. Calls will appear here live.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Detail Side Panel ── */}
+          <AnimatePresence>
+            {selected && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 420, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden shrink-0"
+              >
+                <div className="w-[420px] space-y-5">
+                  {/* Close button */}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setSelected(null)}
+                      className="text-[11px] text-white/30 hover:text-white px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] transition-colors"
+                    >
+                      ✕ Close
+                    </button>
+                  </div>
+
+                  {/* Scorecard */}
+                  <div className="rounded-[20px] bg-[#161616] border border-white/[0.06] p-6">
                     <LeadScorecard leadId={selected} />
                   </div>
 
-                  <div className="glass rounded-[2rem] p-6 shadow-2xl">
-                    <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4 px-2">Call Transcript</h3>
+                  {/* Transcript */}
+                  <div className="rounded-[20px] bg-[#161616] border border-white/[0.06] p-6">
+                    <h3 className="text-[11px] font-bold text-white/25 uppercase tracking-widest mb-4">Call transcript</h3>
                     <CallTranscript leadId={selected} />
                   </div>
 
-                  <div className="glass rounded-[2rem] p-6 shadow-2xl">
-                    <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4 px-2">Data Extraction (CDR)</h3>
+                  {/* CDR */}
+                  <div className="rounded-[20px] bg-[#161616] border border-white/[0.06] p-6">
+                    <h3 className="text-[11px] font-bold text-white/25 uppercase tracking-widest mb-4">Data extraction (CDR)</h3>
                     <CdrPanel leadId={selected} />
                   </div>
-                </motion.div>
-              ) : (
-                <div className="glass rounded-[2rem] p-12 text-center border-dashed border-2 border-white/5">
-                   <div className="text-4xl mb-4 opacity-20">📇</div>
-                   <p className="text-slate-500 text-sm">Select a lead from the list to view qualification scores and transcripts</p>
                 </div>
-              )}
-            </AnimatePresence>
-          </section>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>
   )
 }
 
-function NavItem({ icon, label, active = false }) {
+/* ── Stat Card Component ── */
+function StatCard({ label, value }) {
   return (
-    <button className={`flex items-center gap-4 px-4 py-3 rounded-2xl w-full transition-all text-sm font-medium ${active ? 'bg-[#D4FF00]/5 text-[#D4FF00]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-      <span className="text-xl leading-none">{icon}</span>
-      <span className="hidden lg:block">{label}</span>
-    </button>
-  )
-}
-
-function StatCard({ label, value, trend, gradient, variant = 'glass' }) {
-  return (
-    <motion.div whileHover={{ y:-5 }} className={`p-6 rounded-[2rem] relative overflow-hidden card-shadow ${variant === 'glass' ? 'glass' : 'border border-white/10 bg-transparent'}`}>
-      <div className={`absolute top-0 right-0 w-32 h-full bg-gradient-to-l ${gradient} opacity-20`}></div>
-      <div className="flex justify-between items-start mb-4">
-        <div className="text-3xl font-bold tracking-tight">{value}</div>
-        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs">↗</div>
+    <motion.div
+      whileHover={{ y: -3 }}
+      className="rounded-[20px] bg-[#161616] border border-white/[0.06] p-6 flex flex-col justify-between min-h-[120px]"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[12px] font-medium text-white/30">{label}</span>
+        <button className="w-6 h-6 rounded-md bg-white/[0.04] flex items-center justify-center text-white/20 text-[10px] hover:text-white transition-colors">↗</button>
       </div>
-      <div className="flex justify-between items-end">
-        <span className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{label}</span>
-        <span className="text-[10px] text-[#D4FF00] font-bold bg-[#D4FF00]/10 px-2 py-0.5 rounded-full">{trend}</span>
-      </div>
-    </motion.div>
-  )
-}
-
-function MetricChart({ label, value, trend }) {
-  return (
-    <motion.div whileHover={{ y:-5 }} className="glass p-6 rounded-[2rem] card-shadow relative overflow-hidden group">
-      {/* Decorative SVG Graph mimicking the performance image */}
-      <div className="absolute bottom-0 left-0 w-full h-24 overflow-hidden pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
-        <svg viewBox="0 0 400 100" className="w-full h-full stroke-[#8B5CF6] stroke-[2] fill-[#8B5CF6]/15">
-          <path d="M0 80 Q 50 20, 100 60 T 200 40 T 300 70 T 400 30 V 100 H 0 Z" />
-        </svg>
-      </div>
-
-      <div className="relative z-10">
-         <div className="text-3xl font-bold tracking-tight mb-4">{value}</div>
-         <div className="flex justify-between items-end">
-            <span className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{label}</span>
-            <span className="text-[10px] text-zinc-100 bg-white/10 px-2 py-0.5 rounded-full font-mono">{trend}</span>
-         </div>
-      </div>
+      <span className="text-[32px] font-extrabold tracking-tighter leading-none">{value}</span>
     </motion.div>
   )
 }
