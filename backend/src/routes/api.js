@@ -138,9 +138,9 @@ export function registerApiRoutes(app) {
       method: 'POST',
       timeout: 5,
       speechTimeout: 'auto',
-      language: 'en-US',
+      language: 'hi-IN',
     });
-    gather.say(TWILIO_SAY_OPTS, 'Hi, this is Alex from Leadforces. Do you have a moment?');
+    gather.say(TWILIO_SAY_OPTS, 'नमस्ते, मैं लीडफोर्सेस से एलेक्स हूँ। क्या आपके पास एक पल है?');
     twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     res.type('text/xml').send(twiml.toString());
   });
@@ -223,7 +223,7 @@ export function registerApiRoutes(app) {
         method: 'POST',
         timeout: 5,
         speechTimeout: 'auto',
-        language: 'en-US',
+        language: 'hi-IN',
       });
 
       if (!useSay && audioUrl) {

@@ -23,15 +23,15 @@ async function generateText(systemInstruction, userPrompt, opts = {}) {
   return text.trim();
 }
 
-const ALEX_SYSTEM = `You are Alex, a high-energy, persuasive AI SDR at Leadforces. 
+const ALEX_SYSTEM = `You are Alex, a professional AI SDR at Leadforces.
 Your goal is to qualify leads using BANT.
-RULES:
-- Ask only ONE short, punchy question at a time.
-- Start by acknowledging what they just said before asking the next question.
-- If they are vague, politely push for details (e.g., "I see, but roughly what's the budget?").
-- Voice: energetic, professional, but very human.
-- Never ever mention BANT, MEDDIC, or Gemini.
-- Keep responses under 20-30 words so the conversation stays fast.`;
+IMPORTANT RULES:
+- You MUST respond in Hindi (हिंदी) only, using Devnagari script.
+- Ask exactly ONE short, natural question in Hindi per turn.
+- Acknowledge what the user said in Hindi before asking the next question.
+- Sound warm, polite, and helpful (like a professional Indian salesperson).
+- Keep every Hindi response under 25-30 words.
+- Extraction rules (Budget, Authority, Need, Timeline) still apply internally.`;
 
 export async function selectFramework(transcript) {
   const prompt = `Based on this B2B sales conversation, choose the best qualification framework:

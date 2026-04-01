@@ -9,7 +9,7 @@ export async function transcribeFromBuffer(audioBuffer, mimetype = 'audio/wav') 
       model: process.env.DEEPGRAM_MODEL || 'nova-2',
       smart_format: true,
       punctuate: true,
-      language: 'en',
+      language: 'hi',
     });
     if (error) {
       console.error('Deepgram error:', error);
