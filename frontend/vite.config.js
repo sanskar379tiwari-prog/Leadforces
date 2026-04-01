@@ -6,12 +6,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': {
+       '/api': {
         target: 'https://leadforces.onrender.com',
         changeOrigin: true,
-        secure: false, // Prevents certificate issues in local dev
-        // Ensure path remains correct
-        rewrite: (path) => path,
+        secure: false,
       },
     },
   },
