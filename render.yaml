@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: leadforces-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: PUBLIC_BASE_URL
+        sync: false # User will need to update this to the Render URL once deployed
+      - fromGroup: leadforces-secrets

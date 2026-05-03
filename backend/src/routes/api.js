@@ -138,9 +138,9 @@ export function registerApiRoutes(app) {
       method: 'POST',
       timeout: 5,
       speechTimeout: 'auto',
-      language: 'en-US',
+      language: 'hi-IN',
     });
-    gather.say(TWILIO_SAY_OPTS, 'Hi, this is Alex from Leadforces. Do you have a moment?');
+    gather.say(TWILIO_SAY_OPTS, 'नमस्ते, मैं लीडफोर्सेस से एलेक्स हूँ। क्या आपके पास एक पल है?');
     twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     res.type('text/xml').send(twiml.toString());
   });
@@ -160,13 +160,24 @@ export function registerApiRoutes(app) {
       await ensureCallLog(CallSid, lead.lead_id, From);
 
       const speech = SpeechResult || '';
+      console.log(`[Interaction] Speech received from Twilio: "${speech}"`);
+
       const transcript = await enhanceTranscript(speech, RecordingUrl);
+      console.log(`[Interaction] Deepgram enhanced transcript: "${transcript}"`);
+
+      if (!transcript.trim()) {
+        console.warn('[Interaction] No speech detected, asking to repeat.');
+        twiml.say(TWILIO_SAY_OPTS, 'नमस्ते, क्या आप फिर से कह सकते हैं? (Sorry, I didn\'t catch that)');
+        twiml.redirect(`${baseUrl()}/api/twilio/voice`);
+        res.type('text/xml').send(twiml.toString());
+        return;
+      }
 
       const priorProspect = await countProspectTurns(lead.lead_id);
       const fullTranscriptSoFar = `${lead.call_transcript || ''}\nProspect: ${transcript}`;
 
-      // Second prospect utterance: choose BANT vs MEDDIC once (PDF: after ~2 turns)
       if (priorProspect === 1) {
+        console.log('[Interaction] Determining framework...');
         const fw = await selectFramework(fullTranscriptSoFar.slice(-4000));
         await setFramework(lead.lead_id, fw);
         lead.framework = fw;
@@ -179,13 +190,9 @@ export function registerApiRoutes(app) {
         timeline: lead.timeline,
       };
 
-      let newFields;
-      try {
-        newFields = await extractFields(transcript, existingData);
-      } catch {
-        newFields = existingData;
-      }
-
+      console.log('[Interaction] Extracting fields with Gemini...');
+      let newFields = await extractFields(transcript, existingData);
+      
       const turnScore = await scoreDimension('need', transcript);
       const nextTurn = (await maxTurnNumber(lead.lead_id)) + 1;
 
@@ -196,17 +203,14 @@ export function registerApiRoutes(app) {
       const refreshed = await getLeadById(CallSid);
       const fw = refreshed?.framework || 'BANT';
 
+      console.log(`[Interaction] Generating next question using framework: ${fw}`);
       const question = await nextQuestion(
         fw,
-        {
-          budget: newFields.budget,
-          authority: newFields.authority,
-          need: newFields.need,
-          timeline: newFields.timeline,
-        },
+        newFields,
         (refreshed?.call_transcript || '').slice(-800),
         fullTranscriptSoFar.slice(-600)
       );
+      console.log(`[Interaction] Alex says: "${question}"`);
 
       const agentTurn = nextTurn + 1;
       await saveTurn(lead.lead_id, agentTurn, 'agent', question, newFields, turnScore);
@@ -216,6 +220,7 @@ export function registerApiRoutes(app) {
       await updateLeadScore(lead.lead_id, running, refreshed?.qualified || 'PENDING');
 
       const { url: audioUrl, useSay } = await synthesizeToPlayableUrl(question);
+      console.log(`[Interaction] TTS Audio URL generated: ${audioUrl || 'N/A, using Say'}`);
 
       const gather2 = twiml.gather({
         input: 'speech',
@@ -223,7 +228,7 @@ export function registerApiRoutes(app) {
         method: 'POST',
         timeout: 5,
         speechTimeout: 'auto',
-        language: 'en-US',
+        language: 'hi-IN',
       });
 
       if (!useSay && audioUrl) {
@@ -234,15 +239,16 @@ export function registerApiRoutes(app) {
 
       twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     } catch (err) {
-      console.error('process-speech error:', err);
+      console.error('[Interaction] CRITICAL ERROR:', err);
       const gather3 = twiml.gather({
         input: 'speech',
         action: `${baseUrl()}/api/calls/process-speech`,
         method: 'POST',
         timeout: 5,
         speechTimeout: 'auto',
+        language: 'hi-IN',
       });
-      gather3.say(TWILIO_SAY_OPTS, 'Sorry, could you repeat that?');
+      gather3.say(TWILIO_SAY_OPTS, 'नमस्ते, क्या आप फिर से कह सकते हैं?');
       twiml.redirect(`${baseUrl()}/api/twilio/voice`);
     }
 
